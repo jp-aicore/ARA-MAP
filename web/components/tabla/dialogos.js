@@ -128,7 +128,7 @@ export function abrirDetalle({
       puedeCambiar && (admin || !terreno.published_revision_id) && boton("Borrar terreno…", async () => {
         if (!(await confirmarBorrado({
           titulo: `¿Borrar «${terreno.draft?.terreno || "Terreno sin nombre"}»?`,
-          mensaje: "Se borran el terreno, todos sus datos, su historial y sus archivos adjuntos (PDF, JPG, KMZ y KML).",
+          mensaje: "Se borran el terreno, todos sus datos, su historial y sus archivos adjuntos (PDF, JPG, Word, Excel, KMZ y KML).",
         }))) return;
         if (await close()) onBorrar();
       }, "btn btn-small btn-peligro"),

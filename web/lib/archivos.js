@@ -24,35 +24,71 @@ export const LIMITE_BYTES = Object.freeze({ pdf: 25 * 1024 * 1024, kmz: 20 * 102
 export const LIMITE_KML_BYTES = 16 * 1024 * 1024;
 
 /* The content type each format is staged with and downloaded as (route 3
- * accepts these). Keys are formats: "pdf", "jpg", "kmz" or "kml". The
- * attachments kind ("pdf") takes PDF and JPG files. */
+ * accepts these). Keys are formats: "pdf", "jpg", "docx", "xlsx", "kmz" or
+ * "kml". The attachments kind ("pdf") takes PDF, JPG, Word (.docx) and Excel
+ * (.xlsx) files; Office files are only stored and downloaded, never opened here. */
 export const TIPO_CONTENIDO = Object.freeze({
   pdf: "application/pdf",
   jpg: "image/jpeg",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   kmz: "application/vnd.google-earth.kmz",
   kml: "application/vnd.google-earth.kml+xml",
 });
 
-const EXTENSION = Object.freeze({ pdf: /\.(pdf|jpe?g)$/i, kmz: /\.km[zl]$/i });
+const EXTENSION = Object.freeze({ pdf: /\.(pdf|jpe?g|docx|xlsx)$/i, kmz: /\.km[zl]$/i });
+
+/* The `accept` list of each kind's file chooser. */
+export const ACEPTA = Object.freeze({
+  pdf: [".pdf", ".jpg", ".jpeg", ".docx", ".xlsx", TIPO_CONTENIDO.pdf, TIPO_CONTENIDO.jpg,
+    TIPO_CONTENIDO.docx, TIPO_CONTENIDO.xlsx].join(","),
+  kmz: ".kmz,.kml",
+});
 
 /* The format of a file of kind `tipo`, by its name: the server applies the
  * same rule and then checks the bytes against it. */
 export function formatoDe(nombre, tipo) {
-  if (tipo === "pdf") return /\.jpe?g$/i.test(String(nombre ?? "")) ? "jpg" : "pdf";
-  return /\.kml$/i.test(String(nombre ?? "")) ? "kml" : "kmz";
+  const n = String(nombre ?? "");
+  if (tipo === "pdf") {
+    if (/\.jpe?g$/i.test(n)) return "jpg";
+    if (/\.docx$/i.test(n)) return "docx";
+    if (/\.xlsx$/i.test(n)) return "xlsx";
+    return "pdf";
+  }
+  return /\.kml$/i.test(n) ? "kml" : "kmz";
 }
 
 /* The format a downloaded version declares through its content type. */
 export function formatoDeTipoContenido(tipoContenido, tipo) {
-  if (tipo === "pdf") return tipoContenido === TIPO_CONTENIDO.jpg ? "jpg" : "pdf";
+  if (tipo === "pdf") {
+    for (const f of ["jpg", "docx", "xlsx"]) if (tipoContenido === TIPO_CONTENIDO[f]) return f;
+    return "pdf";
+  }
   return tipoContenido === TIPO_CONTENIDO.kml ? "kml" : "kmz";
 }
 
-/* Upper-case name of a boundary file's format, for messages ("KMZ", "KML"). */
-export const nombreFormato = (formato) => String(formato).toUpperCase();
+/* Whether a saved version of this format is shown in a new tab ("Abrir").
+ * Word and Excel files are only downloaded, to be opened outside ARA Map. */
+export const seAbreEnPestana = (formato) => formato === "pdf" || formato === "jpg";
+
+/* A file's format name, for messages ("PDF", "KMZ", "Word", "Excel"). */
+const NOMBRES = Object.freeze({ docx: "Word", xlsx: "Excel" });
+export const nombreFormato = (formato) => NOMBRES[formato] ?? String(formato).toUpperCase();
 
 const limiteDe = (formato) => (formato === "kml" ? LIMITE_KML_BYTES
-  : formato === "jpg" ? LIMITE_BYTES.pdf : LIMITE_BYTES[formato]);
+  : formato === "kmz" ? LIMITE_BYTES.kmz : LIMITE_BYTES.pdf);
+
+/* The file name a download response declares (RFC 5987 UTF-8 form first,
+ * then the plain fallback), or null. Only a name: the caller still cleans it. */
+export function nombreDeDisposicion(valor) {
+  const texto = String(valor ?? "");
+  const utf8 = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(texto);
+  if (utf8) {
+    try { return decodeURIComponent(utf8[1].trim()); } catch { /* fall back */ }
+  }
+  const simple = /filename\s*=\s*"([^"]*)"/i.exec(texto);
+  return simple && simple[1] ? simple[1] : null;
+}
 
 /* Bounds for what this client is willing to read. JSON pages hold at most 100
  * items (an attempt detail at most the parser's 500 candidate descriptions);
@@ -307,7 +343,8 @@ export function crearClienteArchivos({ peticionPrivada }) {
     /**
      * Route 9: the exact bytes of one finalized version, bounded by its kind's
      * limit and checked against the version id and SHA-256 the server sends.
-     * Returns {bytes, tipoContenido, sha256}. Nothing is cached.
+     * Returns {bytes, tipoContenido, sha256, nombre}; `nombre` is the stored
+     * original name the server declares, or null. Nothing is cached.
      */
     async descargar(versionId, tipo, { signal } = {}) {
       const { response, signal: alcance } = await llamar(
@@ -329,7 +366,8 @@ export function crearClienteArchivos({ peticionPrivada }) {
         if (calculado !== firma) {
           throw new ErrorArchivos("descarga_inconsistente", mensajeDe("descarga_inconsistente"));
         }
-        return { bytes, tipoContenido, sha256: calculado };
+        return { bytes, tipoContenido, sha256: calculado,
+          nombre: nombreDeDisposicion(response.headers.get("Content-Disposition")) };
       } catch (error) {
         if (esAbort(error) || alcance?.aborted || signal?.aborted) throw abortError();
         if (error instanceof ErrorArchivos) throw error;
@@ -356,7 +394,8 @@ export function validarArchivoLocal(archivo, tipo) {
   }
   if (!EXTENSION[tipo].test(String(archivo.name ?? ""))) {
     return new ErrorArchivos("tipo_no_permitido",
-      tipo === "pdf" ? "Elige un archivo PDF o JPG (.pdf, .jpg)." : "Elige un archivo KMZ o KML (.kmz, .kml).");
+      tipo === "pdf" ? "Elige un archivo PDF, JPG, Word o Excel (.pdf, .jpg, .docx, .xlsx)."
+        : "Elige un archivo KMZ o KML (.kmz, .kml).");
   }
   if (archivo.size === 0) return new ErrorArchivos("archivo_vacio", mensajeDe("archivo_vacio"));
   const formato = formatoDe(archivo.name, tipo);
