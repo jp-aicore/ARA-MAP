@@ -32,6 +32,7 @@ from server.almacen import AlmacenEnMemoria
 from server.api import archivos as api
 from server.repo import maestra
 from server.web_util import ApiError
+from tests import office_paquetes
 from tests.archivos_http_harness import Cliente, Servidor
 from tests.support import TEST_PASSWORD
 
@@ -508,6 +509,34 @@ class HTTPChecks:
                          "attachment; filename=\"Foto Nandu.jpeg\"; filename*=UTF-8''"
                          + quote(nombre, safe=""))
         self.assertEqual(h["Content-Security-Policy"], "default-src 'none'; sandbox")
+
+    def test_docx_and_xlsx_over_http_keep_their_bytes_name_and_type(self):
+        for contenido, nombre, tipo, fallback in (
+                (office_paquetes.docx(), "Acta Ñandú.docx", archivos.TIPO_DOCX, "Acta Nandu.docx"),
+                (office_paquetes.xlsx(), "Avalúo.XLSX", archivos.TIPO_XLSX, "Avaluo.XLSX")):
+            with self.subTest(nombre):
+                s, inicio = self.iniciar(contenido, "pdf", nombre=nombre)
+                self.assertEqual(s, 200, inicio)
+                s, r = self.subir(inicio["version_id"], contenido, tipo_contenido=tipo)
+                self.assertEqual(s, 200, r)
+                s, r = self.completar(inicio["version_id"])
+                self.assertEqual((s, r["version"]["tipo_detectado"]), (200, tipo))
+                s, h, cuerpo = self.bajar(f"/api/archivos/versiones/{inicio['version_id']}/descarga")
+                self.assertEqual((s, cuerpo, h["Content-Type"]), (200, contenido, tipo))
+                self.assertEqual(h["Content-Disposition"],
+                                 f"attachment; filename=\"{fallback}\"; filename*=UTF-8''"
+                                 + quote(nombre, safe=""))
+                self.assertEqual(h["X-Content-Type-Options"], "nosniff")
+                self.assertEqual(h["Content-Security-Policy"], "default-src 'none'; sandbox")
+                self.assertEqual(h["X-Archivo-Sha256"], hashlib.sha256(contenido).hexdigest())
+        # A plain ZIP renamed .docx is refused after upload, whatever type the browser sent.
+        falso = office_paquetes.zip_cualquiera()
+        s, inicio = self.iniciar(falso, "pdf", nombre="renombrado.docx")
+        s, r = self.subir(inicio["version_id"], falso, tipo_contenido=archivos.TIPO_DOCX)
+        self.assertEqual(s, 200, r)
+        s, r = self.completar(inicio["version_id"])
+        self.assertEqual((s, r["version"]["estado"], r["version"]["error"]["codigo"]),
+                         (200, "fallido", "firma_invalida"))
 
     def test_kml_limit_through_the_api(self):
         cero = hashlib.sha256(b"").hexdigest()

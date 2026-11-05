@@ -113,7 +113,10 @@ class Forma(unittest.TestCase):
     def test_el_modulo_no_esta_conectado_a_la_aplicacion(self):
         raiz = Path(__file__).resolve().parent.parent
         for ruta in [*raiz.joinpath("server").rglob("*.py"), *raiz.joinpath("api").rglob("*.py")]:
-            if ruta.name == "kmz.py" or ruta == raiz / "server" / "archivos.py":
+            # server/office.py reuses only the bounded ZIP directory walk for Word and
+            # Excel packages (issue #96); it never calls the KML parser.
+            if ruta.name == "kmz.py" or ruta in (raiz / "server" / "archivos.py",
+                                                 raiz / "server" / "office.py"):
                 continue
             with self.subTest(str(ruta)):
                 # Round 1 baseline (integration repair, Team A): the attachment schema in

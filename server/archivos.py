@@ -29,6 +29,8 @@ from .almacen import (
 )
 from .errors import ApiError
 from .kmz import MAX_KML_BYTES, es_paquete, procesar_contorno
+from .office import NOMBRES as _OFFICE_NAMES
+from .office import TIPO_DOCX, TIPO_XLSX, OfficeError, formato_office
 from .protocols import DatabaseConnection
 from .repo import archivos as repo
 
@@ -51,10 +53,16 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 # (reprocess, download) tipo_detectado decides. Older versions are all KMZ.
 TIPO_KMZ = "application/vnd.google-earth.kmz"
 TIPO_KML = "application/vnd.google-earth.kml+xml"
-# The attachments slot (tipo 'pdf', column core:archivos) holds PDF and JPG
-# versions by the same rule: name first, then the verified bytes.
+# The attachments slot (tipo 'pdf', column core:archivos) holds PDF, JPG,
+# Word (.docx) and Excel (.xlsx) versions by the same rule: name first, then
+# the verified bytes. Office files are only stored and returned as they came.
 TIPO_JPG = "image/jpeg"
-LIMITES = {"pdf": PDF_MAX, "jpg": PDF_MAX, "kmz": KMZ_MAX, "kml": KML_MAX}
+LIMITES = {"pdf": PDF_MAX, "jpg": PDF_MAX, "docx": PDF_MAX, "xlsx": PDF_MAX,
+           "kmz": KMZ_MAX, "kml": KML_MAX}
+# Formats of the attachments slot other than PDF, by verified content type and
+# by name. A name with no listed extension is checked as a PDF, as before.
+_ATTACHMENT_TYPES = {TIPO_JPG: "jpg", TIPO_DOCX: "docx", TIPO_XLSX: "xlsx"}
+_ATTACHMENT_EXTENSIONS = {".jpg": "jpg", ".jpeg": "jpg", ".docx": "docx", ".xlsx": "xlsx"}
 _BOM = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff")
 # Leading XML whitespace, in UTF-8 or (with its zero bytes) UTF-16.
 _LEADING_SPACE = re.compile(rb"[ \t\r\n\x00]*")
@@ -253,11 +261,12 @@ def _kind(value: object) -> str:
 
 
 def _format(kind: str, name: str, detected: object = None) -> str:
-    """'pdf', 'jpg', 'kmz' or 'kml': the format one version is checked and read as."""
+    """'pdf', 'jpg', 'docx', 'xlsx', 'kmz' or 'kml': how one version is checked and read."""
     if kind == "pdf":
         if detected:
-            return "jpg" if detected == TIPO_JPG else "pdf"
-        return "jpg" if name.lower().endswith((".jpg", ".jpeg")) else "pdf"
+            return _ATTACHMENT_TYPES.get(str(detected), "pdf")
+        extension = "." + name.rsplit(".", 1)[-1].lower() if "." in name else ""
+        return _ATTACHMENT_EXTENSIONS.get(extension, "pdf")
     if detected:
         return "kml" if detected == TIPO_KML else "kmz"
     return "kml" if name.lower().endswith(".kml") else "kmz"
@@ -426,11 +435,11 @@ def _looks_like_xml(body: bytes) -> bool:
 
 def _verify_final(almacen: Almacen, final_key: str, maximum: int,
                   kind: str) -> tuple[int, str, str, bytes | None]:
-    """Read the final object once; `kind` is the format ('pdf', 'jpg', 'kmz', 'kml')."""
+    """Read the final object once; `kind` is the format (see _format)."""
     digest = hashlib.sha256()
     total = 0
     prefix = bytearray()
-    body = bytearray() if kind in ("kmz", "kml") else None
+    body = bytearray() if kind in ("kmz", "kml", "docx", "xlsx") else None
     with almacen.leer(final_key, maximum) as reading:
         for chunk in reading:
             total += len(chunk)
@@ -449,6 +458,16 @@ def _verify_final(almacen: Almacen, final_key: str, maximum: int,
         if not head.startswith(b"\xff\xd8\xff"):
             raise _error("firma_invalida", "El contenido no es un JPG válido.")
         detected = TIPO_JPG
+    elif kind in ("docx", "xlsx"):
+        assert content is not None
+        try:
+            found = formato_office(content)
+        except OfficeError as exc:
+            raise _error("firma_invalida", exc.mensaje) from None
+        if found != kind:
+            raise _error("firma_invalida", f"El archivo se llama .{kind} pero su contenido "
+                                           f"es un {_OFFICE_NAMES[found]}.")
+        detected = TIPO_DOCX if kind == "docx" else TIPO_XLSX
     elif kind == "kml":
         # The name says KML: a package or a non-XML body is a mismatch, not a KML.
         if es_paquete(head):
