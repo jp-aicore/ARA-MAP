@@ -14,7 +14,7 @@
  * a deleted document and a lost session are handled without empty tabs;
  * clicks and keys never open a cell editor nor change the row selection;
  * closing the chooser or leaving the view drops late answers; repeated clicks
- * open one tab; a refused tab offers a link. "Elegir PDF o JPG…", uploads, the
+ * open one tab; a refused tab offers a link. "Elegir archivo…", uploads, the
  * detail's "Abrir" and the KMZ cell keep working.
  * Optional: ABRIR_CAPTURAS=dir (screenshots), CHROMIUM=/path, ABRIR_PUERTO.
  */
@@ -388,7 +388,7 @@ await revisar('operador autorizado: abre «1 PDF» y elige entre varios', async 
     S['Varios B.pdf'], 'varios');
 });
 
-await revisar('solo consulta: sin «Elegir PDF…», pero la lectura funciona', async () => {
+await revisar('solo consulta: sin «Elegir archivo…», pero la lectura funciona', async () => {
   const lectora = await abrirSesion('olga', { soloLectura: true });
   await irA(lectora.page, base.id);
   await hasta(async () => (await resumen(lectora.page, T.uno)) === '1 archivo', 'resumen');
@@ -582,7 +582,7 @@ await revisar('sesión perdida durante la descarga: sin pestaña vacía ni PDF',
   sesiones.splice(sesiones.indexOf(s), 1);
 });
 
-await revisar('«Elegir PDF…» sigue igual y convierte «1 PDF» en lista; el detalle abre con el mismo flujo', async () => {
+await revisar('«Elegir archivo…» sigue igual y convierte «1 PDF» en lista; el detalle abre con el mismo flujo', async () => {
   await irA(ada.page, base.id);
   const boton = celda(ada.page, T.uno).locator('.archivos-celda-elegir');
   const [chooser] = await Promise.all([ada.page.waitForEvent('filechooser'), boton.click()]);

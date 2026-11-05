@@ -232,6 +232,64 @@ test("client: a KML is chosen, staged and downloaded as a KML in the boundary ki
     (e) => e.codigo === "respuesta_excesiva");
 });
 
+test("client: Word and Excel go in the attachments kind, staged and downloaded as themselves (#96)", async () => {
+  const MiB = 1024 * 1024;
+  const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  for (const [nombre, formato] of [["Acta.docx", "docx"], ["ACTA.DOCX", "docx"], ["Avalúo.xlsx", "xlsx"], ["libro.XLSX", "xlsx"]]) {
+    assert.equal(A.validarArchivoLocal({ name: nombre, size: 10 }, "pdf"), null, nombre);
+    assert.equal(A.formatoDe(nombre, "pdf"), formato, nombre);
+    assert.equal(A.seAbreEnPestana(formato), false);
+  }
+  assert.deepEqual([A.TIPO_CONTENIDO.docx, A.TIPO_CONTENIDO.xlsx], [DOCX, XLSX]);
+  assert.equal(A.formatoDeTipoContenido(DOCX, "pdf"), "docx");
+  assert.equal(A.formatoDeTipoContenido(XLSX, "pdf"), "xlsx");
+  assert.equal(A.formatoDeTipoContenido(DOCX, "kmz"), "kmz", "never in the boundary kind");
+  assert.ok(A.seAbreEnPestana("pdf") && A.seAbreEnPestana("jpg"));
+  // Legacy, macro-enabled and template formats are out of this first scope; KMZ stays in its slot.
+  for (const nombre of ["viejo.doc", "viejo.xls", "macros.docm", "macros.xlsm", "plantilla.dotx", "a.xltx", "a.kmz"]) {
+    const e = A.validarArchivoLocal({ name: nombre, size: 10 }, "pdf");
+    assert.equal(e.codigo, "tipo_no_permitido", nombre);
+    assert.match(e.message, /PDF, JPG, Word o Excel/);
+  }
+  assert.equal(A.validarArchivoLocal({ name: "a.docx", size: 10 }, "kmz").codigo, "tipo_no_permitido");
+  // The same 25 MiB as a PDF.
+  assert.equal(A.validarArchivoLocal({ name: "a.xlsx", size: 25 * MiB }, "pdf"), null);
+  const grande = A.validarArchivoLocal({ name: "a.xlsx", size: 25 * MiB + 1 }, "pdf");
+  assert.equal(grande.message, "El archivo supera el límite de 25 MiB para Excel.");
+  assert.equal(A.limiteArchivo({ name: "a.docx" }, "pdf"), 25 * MiB);
+  assert.match(A.ACEPTA.pdf, /\.docx/);
+  assert.match(A.ACEPTA.pdf, /\.xlsx/);
+  assert.doesNotMatch(A.ACEPTA.pdf, /\.(doc|xls)(,|$)/);
+
+  const vistas = [];
+  const vid = randomUUID();
+  const contenido = Buffer.from("PK\x03\x04 ficticio");
+  const nombre = "Acta Ñandú.docx";
+  const cliente = (headers) => A.crearClienteArchivos({ peticionPrivada: async (ruta, o) => {
+    vistas.push(o);
+    return { response: o.method === "PUT" ? json(200, {}) : new Response(contenido, { status: 200, headers }) };
+  } });
+  const ok = { "Content-Type": DOCX, "X-Archivo-Version-Id": vid, "X-Archivo-Sha256": sha(contenido),
+    "Content-Disposition": `attachment; filename="Acta Nandu.docx"; filename*=UTF-8''${encodeURIComponent(nombre)}` };
+  await cliente(ok).subir(vid, "pdf", new File([contenido], nombre));
+  assert.deepEqual(vistas[0].headers, { "Content-Type": DOCX });
+  const r = await cliente(ok).descargar(vid, "pdf");
+  assert.deepEqual([r.tipoContenido, r.nombre, Buffer.from(r.bytes).equals(contenido)], [DOCX, nombre, true]);
+  // Without the UTF-8 form the plain name is used; without either, none.
+  const simple = await cliente({ ...ok, "Content-Disposition": 'attachment; filename="Acta.docx"' }).descargar(vid, "pdf");
+  assert.equal(simple.nombre, "Acta.docx");
+  const { "Content-Disposition": _omitida, ...sinNombre } = ok;
+  assert.equal((await cliente(sinNombre).descargar(vid, "pdf")).nombre, null);
+  await assert.rejects(cliente({ ...ok, "Content-Type": "application/zip" }).descargar(vid, "pdf"),
+    (e) => e.codigo === "descarga_inconsistente");
+  await assert.rejects(cliente({ ...ok, "Content-Length": String(25 * MiB + 1) }).descargar(vid, "pdf"),
+    (e) => e.codigo === "respuesta_excesiva");
+  const { nombreSeguro } = await import("../../web/components/archivos/resumen.js");
+  assert.equal(nombreSeguro("Acta", "docx"), "Acta.docx");
+  assert.equal(nombreSeguro("Libro.XLSX", "xlsx"), "Libro.XLSX");
+});
+
 /* ---------------------------------------------------- upload pipeline */
 
 function subidaCon(servidor, opciones = {}) {

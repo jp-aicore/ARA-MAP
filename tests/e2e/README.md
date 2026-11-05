@@ -93,12 +93,28 @@ vencidas o rechazadas no son enlaces; un PDF guardado junto a un reemplazo
 vencido sigue abriéndose. Administrador, operador y modo de solo consulta;
 teclado sin editor ni cambio de selección; clics repetidos, pestaña bloqueada,
 documento y terreno borrados, cambio de vista, recarga y sesión perdida sin
-pestañas vacías. «Elegir PDF…», el «Abrir» del detalle y el KMZ siguen igual.
+pestañas vacías. «Elegir archivo…», el «Abrir» del detalle y el KMZ siguen igual.
 Levanta y borra su propio servidor desechable con datos ficticios.
 
 ```bash
 cd tests/e2e && npm ci
 node tabla-abrir-pdf.mjs                    # ABRIR_CAPTURAS=carpeta para capturas
+```
+
+## Word y Excel en «Archivos» (#96)
+
+«Elegir archivo…» de la celda acepta DOCX (administrador) y XLSX (operador); el
+contador y su lista los descargan con los mismos bytes y su nombre original, sin
+abrir pestaña. El detalle recibe un XLSX por arrastre, ofrece «Descargar» y no
+«Abrir». Un Word guardado detrás de una subida nueva vencida se descarga con su
+propio nombre. Un ZIP renombrado .docx se rechaza tras subirlo y un .doc antes.
+Regresión: el PDF sigue abriéndose en pestaña y el KMZ no cambia. Necesita una
+configuración regional UTF-8: sin ella, Chromium sin interfaz guarda cualquier
+nombre no ASCII como «download», también los PDF.
+
+```bash
+cd tests/e2e && npm ci
+LANG=C.UTF-8 node tabla-office.mjs          # OFFICE_CAPTURAS=carpeta para capturas
 ```
 
 ## Subidas PDF ante recargas de la tabla
@@ -134,7 +150,7 @@ MALLOC_ARENA_MAX=2 python3 tests/e2e/ensayo_archivos.py --fases grandes,sesiones
 
 ## Elegir PDF/KMZ desde las celdas de la tabla
 
-Botones «Elegir PDF…» y «Elegir KMZ o KML…» de la tabla con los widgets reales:
+Botones «Elegir archivo…» y «Elegir KMZ o KML…» de la tabla con los widgets reales:
 administrador y operador, asociación a la fila, selección y activación
 explícitas del KMZ, reemplazo inválido, selector cancelado, teclado y filas
 sin permiso. Levanta y borra su propio servidor desechable.

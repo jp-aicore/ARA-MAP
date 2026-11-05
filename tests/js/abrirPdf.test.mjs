@@ -161,6 +161,55 @@ test("open: errors and cancellation close the reserved tab and register nothing"
   assert.equal(urls.agregadas.length, 0);
 });
 
+test("open: Word and Excel are saved with their name and extension, never shown in a tab (#96)", async () => {
+  const clics = [];
+  const documento = {
+    body: { append: () => {} },
+    createElement: (tag) => {
+      const nodo = { tag, attrs: {}, setAttribute: (k, v) => { nodo.attrs[k] = v; },
+        click: () => clics.push({ ...nodo.attrs }), remove: () => {} };
+      return nodo;
+    },
+  };
+  globalThis.document = documento;
+  try {
+    const casos = [
+      ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "Acta Ñandú.docx", null, "Acta Ñandú.docx"],
+      ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", null, "avaluo", "avaluo.xlsx"],
+    ];
+    for (const [tipoContenido, nombreServidor, nombreLocal, esperado] of casos) {
+      const urls = registro();
+      const p = nuevaPestana();
+      const cliente = { descargar: async () => ({ bytes, tipoContenido, nombre: nombreServidor }) };
+      const r = await P.abrirPdf({ cliente, versionId: randomUUID(), pestana: p, urls, nombre: nombreLocal });
+      assert.deepEqual(r, { descargado: true });
+      assert.equal(p.cerrada, 1, "the reserved tab is closed, not filled");
+      assert.equal(p.destino, null);
+      const ultimo = clics.at(-1);
+      assert.equal(ultimo.download, esperado);
+      assert.deepEqual(urls.agregadas, [ultimo.href], "the URL is registered for revocation");
+      urls.vaciar();
+    }
+    // Without a reserved tab (the name already said Office) it is saved all the same.
+    const urls = registro();
+    const cliente = { descargar: async () => ({ bytes, nombre: "libro.xlsx",
+      tipoContenido: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) };
+    assert.deepEqual(await P.abrirPdf({ cliente, versionId: randomUUID(), pestana: null, urls }), { descargado: true });
+    assert.equal(clics.at(-1).download, "libro.xlsx");
+    urls.vaciar();
+  } finally {
+    delete globalThis.document;
+  }
+  // A JPG still opens in its tab.
+  const p = nuevaPestana();
+  const urls = registro();
+  const r = await P.abrirPdf({ cliente: { descargar: async () => ({ bytes, tipoContenido: "image/jpeg" }) },
+    versionId: randomUUID(), pestana: p, urls });
+  assert.deepEqual(r, { abierta: true });
+  assert.match(p.destino, /^blob:/);
+  urls.vaciar();
+});
+
 test("registry: URLs are revoked once, by time or all at once", () => {
   const revocadas = [];
   const original = URL.revokeObjectURL;
