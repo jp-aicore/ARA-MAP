@@ -1,5 +1,9 @@
-/* Opening one saved PDF version in a new tab, shared by the record detail
- * ("Abrir", "Abrir guardada") and the table cell's link and chooser.
+/* Opening one saved attachment version, shared by the record detail
+ * ("Abrir", "Abrir guardada") and the table cell's link and chooser. A PDF or
+ * JPG is shown in a new tab; a Word (.docx) or Excel (.xlsx) file is never
+ * shown here: it is saved with its original name and extension, to be opened
+ * outside ARA Map (issue #96). Its format is only certain once the download
+ * declares it, so a tab reserved for it is closed instead of filled.
  *
  * The bytes always come through the application's authenticated download
  * (cliente.descargar: bounded, checked against the version id and SHA-256);
@@ -20,7 +24,8 @@
  */
 
 import { el } from "../../lib/dom.js";
-import { abortError } from "../../lib/archivos.js";
+import { abortError, formatoDeTipoContenido, seAbreEnPestana } from "../../lib/archivos.js";
+import { nombreSeguro } from "./resumen.js";
 
 export const VIDA_URL_MS = 60_000;
 
@@ -78,14 +83,25 @@ export function cerrarPestana(pestana) {
   try { if (pestana && !pestana.closed) pestana.close(); } catch { /* already gone */ }
 }
 
+/** Hand downloaded bytes to the browser as a saved file named `nombre`. */
+export function guardarArchivo(url, nombre) {
+  const a = el("a", { href: url, download: nombre, hidden: true });
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
 /**
  * Download version `versionId` and show it in `pestana` (from reservarPestana).
- * Resolves {abierta: true} when the tab received it, or {abierta: false, url,
- * cerrada} when there was no tab to receive it (`cerrada`: the person closed
- * the reserved tab; otherwise the browser refused it). Rejects with the download's error
- * (AbortError when `signal` ended); the reserved tab is closed first.
+ * Resolves {abierta: true} when the tab received it, {descargado: true} when
+ * it is a Word or Excel file and was saved instead (the reserved tab, if any,
+ * is closed), or {abierta: false, url, cerrada} when there was no tab to
+ * receive it (`cerrada`: the person closed the reserved tab; otherwise the
+ * browser refused it). `nombre` is the name to save under when the server
+ * declares none. Rejects with the download's error (AbortError when `signal`
+ * ended); the reserved tab is closed first.
  */
-export async function abrirPdf({ cliente, versionId, pestana, signal, urls }) {
+export async function abrirPdf({ cliente, versionId, pestana, signal, urls, nombre = null }) {
   let r;
   try {
     r = await cliente.descargar(versionId, "pdf", { signal });
@@ -95,6 +111,12 @@ export async function abrirPdf({ cliente, versionId, pestana, signal, urls }) {
     throw error;
   }
   const url = urls.agregar(URL.createObjectURL(new Blob([r.bytes], { type: r.tipoContenido || "application/pdf" })));
+  const formato = formatoDeTipoContenido(r.tipoContenido, "pdf");
+  if (!seAbreEnPestana(formato)) {
+    cerrarPestana(pestana);
+    guardarArchivo(url, nombreSeguro(r.nombre ?? nombre, formato));
+    return { descargado: true };
+  }
   enEspera.delete(pestana);
   if (pestana && !pestana.closed) {
     try {

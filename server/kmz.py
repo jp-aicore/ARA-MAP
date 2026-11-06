@@ -395,6 +395,10 @@ def _revisar_directorio(datos: bytes) -> None:
         raise _danado()
 
 
+# Shared with server.office: the same bounded walk for any uploaded ZIP package.
+revisar_directorio = _revisar_directorio
+
+
 def _danado() -> KmzError:
     return KmzError("KMZ_DANADO", "El KMZ está dañado o incompleto.")
 

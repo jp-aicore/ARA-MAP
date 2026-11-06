@@ -22,6 +22,7 @@ from server.almacen import AlmacenEnMemoria, AlmacenLocal
 from server.errors import ApiError
 from server.repo import inventario as repo_inventario
 from server.repo import maestra
+from tests import office_paquetes
 from tests.support import TEST_PASSWORD
 
 URL = os.environ.get("ARA_MAP_TEST_DATABASE_URL")
@@ -1658,6 +1659,94 @@ class KmlChecks:
 
     def test_jpg_limit_is_the_pdf_limit(self):
         self.assertEqual(archivos.LIMITES["jpg"], archivos.PDF_MAX)
+
+    # -- Word and Excel in the attachments slot -------------------------------------
+
+    def test_docx_and_xlsx_round_trip_for_an_operator_and_none_for_another(self):
+        for name, data, detected, fmt in (
+                ("Informe Ñandú.DOCX", office_paquetes.docx(), archivos.TIPO_DOCX, "docx"),
+                ("Avalúo 2026.xlsx", office_paquetes.xlsx(), archivos.TIPO_XLSX, "xlsx")):
+            with self.subTest(name):
+                started = self.upload(data, "pdf", user="olga", name=name)
+                result = self.complete(started, user="olga")
+                self.assertEqual((result["version"]["estado"], result["version"]["tipo_detectado"],
+                                  result["aplicada"]), ("disponible", detected, True))
+                for user in ("olga", "ana"):
+                    got = self.download(started["version_id"], user=user)
+                    self.assertEqual((bytes(got["contenido"]), got["nombre_original"],
+                                      got["tipo_contenido"], got["formato"], got["tipo"]),
+                                     (data, name, detected, fmt, "pdf"))
+                for call in (lambda v=started["version_id"]: self.download(v, user="omar"),
+                             lambda d=data, n=name: self.start(d, "pdf", user="omar", name=n)):
+                    self.assertEqual(self.assert_code("not_found", call).status, 404)
+        # One slot, one kind: no column or table per format.
+        self.assertEqual({(a["columna_id"], a["tipo"]) for a in self.rows("archivo")},
+                         {("core:archivos", "pdf")})
+        self.assert_terrain_untouched()
+
+    def test_office_content_must_match_its_name_and_be_a_real_package(self):
+        for name, data, message in (
+                ("informe.docx", office_paquetes.xlsx(), "es un Excel (.xlsx)"),
+                ("tabla.xlsx", office_paquetes.docx(), "es un Word (.docx)"),
+                ("renombrado.docx", office_paquetes.zip_cualquiera(), "no es un archivo de Office"),
+                ("contorno.xlsx", kmz("poligono_simple"), "no es un archivo de Office"),
+                ("informe.docx", PDF, "no es un archivo de Office"),
+                ("macros.xlsx", office_paquetes.xlsx(**{"xl/vbaProject.bin": b"\0"}), "macros"),
+                ("informe.pdf", office_paquetes.docx(), "no es un PDF")):
+            with self.subTest(name=name, message=message):
+                result = self.complete(self.upload(data, "pdf", name=name))
+                self.assertEqual(result["version"]["estado"], "fallido")
+                self.assertEqual(result["version"]["error"]["codigo"], "firma_invalida")
+                self.assertIn(message, result["version"]["error"]["mensaje"])
+
+    def test_office_limit_is_the_pdf_limit_declared_and_written(self):
+        self.assertEqual((archivos.LIMITES["docx"], archivos.LIMITES["xlsx"]),
+                         (archivos.PDF_MAX, archivos.PDF_MAX))
+        cero = hashlib.sha256(b"").hexdigest()
+        for name in ("grande.docx", "grande.xlsx"):
+            with self.subTest(name):
+                ok = archivos.iniciar(self.sessions["ana"], self.terrain, tipo="pdf",
+                                      nombre_original=name, tamano_declarado=archivos.PDF_MAX,
+                                      sha256_declarado=cero, idempotency_key=str(uuid.uuid4()),
+                                      bd=self.database, reloj=self.clock)
+                self.assertEqual(ok["estado"], "subiendo")
+                error = self.assert_code("tamano_invalido", lambda n=name: archivos.iniciar(
+                    self.sessions["ana"], self.terrain, tipo="pdf", nombre_original=n,
+                    tamano_declarado=archivos.PDF_MAX + 1, sha256_declarado=cero,
+                    idempotency_key=str(uuid.uuid4()), bd=self.database, reloj=self.clock))
+                self.assertEqual(error.detalle["limite"], archivos.PDF_MAX)
+                archivos.cancelar(self.sessions["ana"], ok["version_id"], self.store,
+                                  bd=self.database, reloj=self.clock)
+        # One byte more never reaches storage, even when less was declared.
+        mib = 1024 * 1024
+        small = self.start(b"x", "pdf", name="poco.xlsx")
+        error = self.assert_code("tamano_excedido", lambda: archivos.escribir_temporal(
+            self.sessions["ana"], small["version_id"],
+            [bytes(mib)] * (archivos.PDF_MAX // mib) + [b" "],
+            self.store, bd=self.database, reloj=self.clock))
+        self.assertEqual((error.status, error.detalle["limite"]), (413, archivos.PDF_MAX))
+
+    def test_failed_office_upload_keeps_saved_files_and_delete_removes_one(self):
+        pdf = self.complete(self.upload(PDF, "pdf", name="plano.pdf"))
+        word = self.complete(self.upload(office_paquetes.docx(), "pdf", name="acta.docx"))
+        failed = self.complete(self.upload(office_paquetes.zip_cualquiera(), "pdf",
+                                           name="falso.xlsx"))
+        self.assertEqual(failed["version"]["estado"], "fallido")
+        # The earlier attachments are untouched and still download as themselves.
+        self.assertEqual(bytes(self.download(pdf["version"]["id"])["contenido"]), PDF)
+        got = self.download(word["version"]["id"])
+        self.assertEqual((bytes(got["contenido"]), got["nombre_original"], got["formato"]),
+                         (office_paquetes.docx(), "acta.docx", "docx"))
+        listed = archivos.listar(self.sessions["ana"], self.terrain, bd=self.database,
+                                 reloj=self.clock)["archivos"]
+        self.assertEqual(len(listed), 3)
+        deleted = archivos.borrar(self.sessions["ana"], word["archivo"]["id"],
+                                  expected_revision=word["archivo"]["revision"],
+                                  almacen=self.store, bd=self.database)
+        self.assertTrue(deleted["borrado"])
+        self.assert_code("not_found", lambda: self.download(word["version"]["id"]))
+        self.assertEqual(bytes(self.download(pdf["version"]["id"])["contenido"]), PDF)
+        self.assert_terrain_untouched()
 
 class AttachmentLifecycleSQLite(LifecycleChecks, KmlChecks, unittest.TestCase):
     def prepare_database(self) -> None:

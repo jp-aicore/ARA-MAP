@@ -1,7 +1,7 @@
 /* The compact file cell of the table, for one terrain and one kind (pdf | kmz).
  *
  * It shows the caller-aware summary as before and, when the row may be
- * changed, an "Elegir PDF…" / "Elegir KMZ o KML…" button that runs the same upload
+ * changed, an "Elegir archivo…" / "Elegir KMZ o KML…" button that runs the same upload
  * as the record detail (subida.js, with the factory's shared client, pipeline
  * turn and count of unfinished uploads). The cell never fetches on its own:
  * once the server has the upload it tells the host (onCambio), which hands
@@ -19,6 +19,8 @@
  * lists only the most recent attachments asks the authorized list, page by
  * page, when the chooser opens. Uploads that never finished, expired or were
  * refused are not offered; a saved version whose newer upload failed is.
+ * A Word or Excel attachment (issue #96) is downloaded with its original name
+ * instead of shown in a tab.
  * Opening uses the detail's own flow (abrirPdf.js) and does not depend on the
  * right to write. The chooser, the list and a download in flight end when the
  * cell is destroyed or the chooser closes; late answers are dropped.
@@ -35,9 +37,9 @@ import { EN_PROGRESO, FASE_TEXTO } from "./detalle.js";
 import {
   abrirPdf, enlaceDeRespaldo, MENSAJE_BLOQUEADO, MENSAJE_CERRADA, reservarPestana, VIDA_URL_MS,
 } from "./abrirPdf.js";
-import { ErrorArchivos, LIMITE_PAGINA } from "../../lib/archivos.js";
+import { ACEPTA, ErrorArchivos, LIMITE_PAGINA, formatoDe, seAbreEnPestana } from "../../lib/archivos.js";
 
-const ETIQUETA = { pdf: "Archivos PDF o JPG", kmz: "KMZ / KML" };
+const ETIQUETA = { pdf: "Archivos", kmz: "KMZ / KML" };
 
 /* What a cell can say in a few words after the upload; the full message goes in the title. */
 const NOTA_CORTA = {
@@ -46,6 +48,8 @@ const NOTA_CORTA = {
 
 const esAbort = (e) => e?.name === "AbortError";
 const nombreDe = (o) => o.nombre ?? "Archivo guardado (versión anterior)";
+/* A saved option known by name to be Word or Excel: downloaded, never shown in a tab. */
+const seDescarga = (o) => Boolean(o?.nombre) && !seAbreEnPestana(formatoDe(o.nombre, "pdf"));
 
 export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, onCambio, onError }, ctx) {
   let vivo = true;
@@ -76,9 +80,9 @@ export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, 
   const enlace = el("button", { type: "button", class: "archivos-celda-abrir",
     onclick: () => (enlace.dataset.modo === "directo" ? abrirDirecto() : alternarSelector()) });
   const entrada = el("input", { type: "file", class: "archivos-entrada", tabindex: "-1", "aria-hidden": "true",
-    accept: tipo === "pdf" ? ".pdf,.jpg,.jpeg,application/pdf,image/jpeg" : ".kmz,.kml" });
+    accept: ACEPTA[tipo] });
   const elegir = el("button", { type: "button", class: "btn btn-quiet btn-small archivos-celda-elegir" },
-    tipo === "pdf" ? "Elegir PDF o JPG…" : "Elegir KMZ o KML…");
+    tipo === "pdf" ? "Elegir archivo…" : "Elegir KMZ o KML…");
   const progreso = el("span", { class: "archivos-celda-subida", role: "status", "aria-live": "polite" });
   const aviso = el("span", { class: "archivos-celda-aviso", role: "status", "aria-live": "polite", hidden: true });
   const elegirContorno = el("button", { type: "button", class: "btn btn-quiet btn-small archivos-celda-elegir-contorno",
@@ -137,8 +141,9 @@ export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, 
     // The same button across repaints, so a refreshed summary keeps its focus.
     enlace.dataset.modo = modo;
     enlace.textContent = d.texto;
-    enlace.title = modo === "directo" ? "Abrir el archivo en una pestaña nueva"
-      : "Elegir un archivo para abrirlo en una pestaña nueva";
+    const unica = modo === "directo" ? pdfsDelResumen(r)?.opciones?.[0] : null;
+    enlace.title = modo !== "directo" ? "Elegir un archivo para abrirlo o descargarlo"
+      : seDescarga(unica) ? "Descargar el archivo" : "Abrir el archivo en una pestaña nueva";
     enlace.setAttribute("aria-label", `${titulo}. ${enlace.title}`);
     if (modo === "lista") {
       enlace.setAttribute("aria-haspopup", "dialog");
@@ -198,17 +203,20 @@ export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, 
     if (selector) cargarOpciones({ reiniciar: true });
   }
 
-  /* Open one saved version. The tab is reserved here, in the gesture. */
-  async function abrir(versionId) {
+  /* Open one saved option. The tab is reserved here, in the gesture, unless
+   * its name already says it is a Word or Excel file, which is downloaded. */
+  async function abrir(opcion) {
     if (!vivo || fuera || abriendo || !ctx.vivo()) return;
-    const pestana = reservarPestana();
+    const descarga = seDescarga(opcion);
+    const pestana = descarga ? null : reservarPestana();
     const control = new AbortController();
     marcarAbriendo(control);
-    avisar("Abriendo el archivo…");
+    avisar(descarga ? "Descargando el archivo…" : "Abriendo el archivo…");
     try {
-      const r = await abrirPdf({ cliente: ctx.cliente, versionId, pestana, signal: control.signal, urls: ctx.urls });
+      const r = await abrirPdf({ cliente: ctx.cliente, versionId: opcion.versionId, pestana,
+        signal: control.signal, urls: ctx.urls, nombre: opcion.nombre });
       if (!vivo || abriendo !== control) return;
-      if (r.abierta) {
+      if (r.abierta || r.descargado) {
         marcarAbriendo(null);          // done: closing the chooser now cancels nothing
         avisar("");
         cerrarSelector();
@@ -230,7 +238,7 @@ export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, 
 
   function abrirDirecto() {
     const unica = pdfsDelResumen(ultimoResumen)?.opciones;
-    if (unica?.length === 1) abrir(unica[0].versionId);
+    if (unica?.length === 1) abrir(unica[0]);
   }
 
   /* ----------------------------------------------------------- chooser */
@@ -342,7 +350,7 @@ export function montarCelda({ container, terrenoId, tipo, soloLectura, resumen, 
     ocultasOpciones += Math.max(0, ocultas);
     for (const o of opciones) {
       const b = el("button", { type: "button", class: "archivos-opcion", "aria-disabled": abriendo ? "true" : null,
-        onclick: () => abrir(o.versionId) },
+        onclick: () => abrir(o) },
       el("span", { class: "archivos-opcion-nombre" }, nombreDe(o)),
       o.nota ? el("span", { class: "archivos-opcion-nota" }, o.nota) : null);
       b.title = o.nota ? `${nombreDe(o)}. ${o.nota}` : nombreDe(o);

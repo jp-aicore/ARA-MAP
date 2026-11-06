@@ -44,8 +44,8 @@ FabricaAlmacen = Callable[[], Almacen]
 
 # Raw upload media types. Multipart or JSON/base64 bodies are refused: the
 # body must be exactly the file's bytes.
-TIPOS_CONTENIDO = {"application/pdf", archivos.TIPO_JPG, archivos.TIPO_KMZ, archivos.TIPO_KML,
-                   "application/octet-stream"}
+TIPOS_CONTENIDO = {"application/pdf", archivos.TIPO_JPG, archivos.TIPO_DOCX, archivos.TIPO_XLSX,
+                   archivos.TIPO_KMZ, archivos.TIPO_KML, "application/octet-stream"}
 METADATOS_MAX_BYTES = 16 * 1024
 _SIN_CACHE = "private, no-store"
 _AISLADO = "default-src 'none'; sandbox"

@@ -1,4 +1,4 @@
-/* "Elegir PDF o JPG…" / "Elegir KMZ…" in the table's file cells, with the REAL
+/* "Elegir archivo…" / "Elegir KMZ…" in the table's file cells, with the REAL
  * widgets (web/components/archivos/celda.js), the real local server
  * (tests/e2e/tabla_servidor.py on a folder it creates and deletes), real
  * sessions and Chromium. Fictional accounts and files only.
@@ -168,7 +168,7 @@ await revisar('administrador: celdas vacías muestran su resumen y los dos boton
   for (const id of [A, B]) {
     await hasta(async () => (await resumen(ada.page, id, COL.pdf)) === 'Sin archivos', 'resumen PDF');
     igual(await resumen(ada.page, id, COL.kmz), 'Sin KMZ / KML', 'resumen KMZ');
-    igual(await elegirEn(ada.page, id, COL.pdf).innerText(), 'Elegir PDF o JPG…', 'botón PDF');
+    igual(await elegirEn(ada.page, id, COL.pdf).innerText(), 'Elegir archivo…', 'botón PDF');
     igual(await elegirEn(ada.page, id, COL.kmz).innerText(), 'Elegir KMZ o KML…', 'botón KMZ');
     igual(await botonesVisibles(ada.page, id), 2, 'dos botones visibles');
   }

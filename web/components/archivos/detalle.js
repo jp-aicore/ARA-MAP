@@ -21,7 +21,8 @@
 import { el } from "../../lib/dom.js";
 import { fmtDate } from "../../lib/format.js";
 import { openDialog } from "../ui/dialog.js";
-import { ErrorArchivos, LIMITE_BYTES, LIMITE_KML_BYTES, TIPO_CONTENIDO, formatoDeTipoContenido, nuevaClave,
+import { ACEPTA, ErrorArchivos, LIMITE_BYTES, LIMITE_KML_BYTES, TIPO_CONTENIDO, formatoDe, formatoDeTipoContenido,
+  nuevaClave, seAbreEnPestana,
 } from "../../lib/archivos.js";
 import { crearSubida, FASE, esTerminal, pierdeAcceso } from "./subida.js";
 import { describirResumen, nombreSeguro, tamanoLegible } from "./resumen.js";
@@ -30,6 +31,14 @@ import {
 } from "./abrirPdf.js";
 
 const PAGINA_ARCHIVOS = 20;
+
+/* Whether an attachment version offers "Abrir": PDF and JPG do; Word and Excel
+ * are only downloaded. A version whose format is not known yet (the saved one
+ * behind a newer upload) offers it, and the opening saves it if it is Office. */
+function abrible(v) {
+  if (v?.tipo_detectado) return seAbreEnPestana(formatoDeTipoContenido(v.tipo_detectado, "pdf"));
+  return !v?.nombre_original || seAbreEnPestana(formatoDe(v.nombre_original, "pdf"));
+}
 const PAGINA_DETALLE = 10;
 
 const ACCIONES = {
@@ -81,7 +90,7 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
   let cambioPendiente = false;
   let listaGen = 0;
 
-  const ETIQUETA = tipo === "pdf" ? "PDF o JPG" : "KMZ / KML";
+  const ETIQUETA = tipo === "pdf" ? "Archivos" : "KMZ / KML";
   const MIB = 1024 * 1024;
   const maximo = tipo === "pdf" ? `Máximo ${LIMITE_BYTES.pdf / MIB} MiB.`
     : `Máximo ${LIMITE_BYTES.kmz / MIB} MiB para KMZ y ${LIMITE_KML_BYTES / MIB} MiB para KML.`;
@@ -90,10 +99,10 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
 
   const resumenLinea = el("p", { class: "archivos-resumen secondary" });
   const estado = el("p", { class: "archivos-mensaje", role: "status", "aria-live": "polite" });
-  const entrada = el("input", { type: "file", class: "archivos-entrada", accept: tipo === "pdf" ? ".pdf,.jpg,.jpeg,application/pdf,image/jpeg" : ".kmz,.kml",
+  const entrada = el("input", { type: "file", class: "archivos-entrada", accept: ACEPTA[tipo],
     tabindex: "-1", "aria-hidden": "true" });
   const botonElegir = el("button", { type: "button", class: "btn btn-quiet btn-small archivos-elegir" },
-    tipo === "pdf" ? "Elegir PDF o JPG…" : "Elegir KMZ o KML…");
+    tipo === "pdf" ? "Elegir archivo…" : "Elegir KMZ o KML…");
   const zona = el("div", { class: "archivos-zona" },
     botonElegir,
     el("span", { class: "secondary" }, ` o arrastra un archivo aquí. ${maximo}`),
@@ -104,7 +113,7 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
   const avisoLista = el("button", { type: "button", class: "btn btn-quiet btn-small", hidden: true },
     "La lista cambió: actualizar");
   const raiz = el("section", { class: "archivos-detalle", dataset: { tipo } },
-    el("h3", { class: "archivos-titulo" }, tipo === "pdf" ? "Archivos PDF y JPG" : "KMZ / KML del terreno"),
+    el("h3", { class: "archivos-titulo" }, tipo === "pdf" ? "Archivos (PDF, JPG, Word o Excel)" : "KMZ / KML del terreno"),
     resumenLinea, zona, listaSubidas, estado, avisoLista, lista, masArchivos);
   container.replaceChildren(raiz);
 
@@ -343,7 +352,8 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
       const formato = formatoDeTipoContenido(r.tipoContenido, tipo);
       const url = URL.createObjectURL(new Blob([r.bytes], { type: TIPO_CONTENIDO[formato] }));
       urls.add(url);
-      const a = el("a", { href: url, download: nombreSeguro(version.nombre_original, formato), hidden: true });
+      // The server's stored name first: the saved version behind a newer upload has no name here.
+      const a = el("a", { href: url, download: nombreSeguro(r.nombre ?? version.nombre_original, formato), hidden: true });
       document.body.append(a);
       a.click();
       a.remove();
@@ -358,9 +368,11 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
   async function abrirVersion(version, pestana) {
     try {
       avisar("Abriendo…");
-      const r = await abrirPdf({ cliente: ctx.cliente, versionId: version.id, pestana, signal: senal(), urls: ctx.urls });
+      const r = await abrirPdf({ cliente: ctx.cliente, versionId: version.id, pestana, signal: senal(), urls: ctx.urls,
+        nombre: version.nombre_original });
       if (!vivo || fuera) return;
       if (r.abierta) { avisar("Archivo abierto en una pestaña nueva."); return; }
+      if (r.descargado) { avisar("Descarga lista. Ábrelo con Word o Excel."); return; }
       avisar(`${r.cerrada ? MENSAJE_CERRADA : MENSAJE_BLOQUEADO} `, r.cerrada ? "info" : "error");
       const enlace = enlaceDeRespaldo(r.url);
       estado.append(enlace);
@@ -480,7 +492,7 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
     const acciones = [];
     if (v.estado === "disponible") {
       acciones.push(boton("Descargar", () => descargar(v), { etiqueta: `Descargar versión ${v.numero}` }));
-      if (tipo === "pdf") acciones.push(boton("Abrir", () => descargar(v, true), { etiqueta: `Abrir versión ${v.numero}` }));
+      if (tipo === "pdf" && abrible(v)) acciones.push(boton("Abrir", () => descargar(v, true), { etiqueta: `Abrir versión ${v.numero}` }));
       if (tipo === "pdf" && !actual && !archivo.retirado_en && !solo) {
         acciones.push(boton("Hacer actual", () => activar(archivo, v.id, null), { escritura: true }));
       }
@@ -605,7 +617,7 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
 
     if (archivo.version_actual_id && v && v.id === archivo.version_actual_id && v.estado === "disponible") {
       acciones.append(boton("Descargar", () => descargar(v), { etiqueta: `Descargar ${nombre}` }));
-      if (tipo === "pdf") acciones.append(boton("Abrir", () => descargar(v, true), { etiqueta: `Abrir ${nombre}` }));
+      if (tipo === "pdf" && abrible(v)) acciones.append(boton("Abrir", () => descargar(v, true), { etiqueta: `Abrir ${nombre}` }));
     } else if (archivo.version_actual_id && !archivo.retirado_en) {
       // A newer attempt did not finish (or is another account's): the saved version stays reachable.
       const guardada = { id: archivo.version_actual_id, nombre_original: null };
@@ -688,7 +700,7 @@ export function montarDetalle({ container, terrenoId, tipo, soloLectura, resumen
       if (!siguiente) lista.replaceChildren();
       for (const a of propios) lista.append(lineaArchivo(a));
       if (!siguiente && lista.children.length === 0 && !r.cursor_siguiente) {
-        lista.append(el("li", { class: "secondary" }, tipo === "pdf" ? "Este terreno no tiene PDF ni JPG." : "Este terreno no tiene KMZ ni KML."));
+        lista.append(el("li", { class: "secondary" }, tipo === "pdf" ? "Este terreno no tiene archivos." : "Este terreno no tiene KMZ ni KML."));
       }
       cursorLista = r.cursor_siguiente;
       masArchivos.hidden = cursorLista == null;
