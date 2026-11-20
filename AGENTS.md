@@ -2,8 +2,8 @@
 
 Instrucciones compartidas para cualquier agente de IA (Claude Code, Codex u
 otro) que trabaje en este repositorio, en cualquier computadora. Aquí van las
-reglas estables. El estado del trabajo en curso vive en `reports/` y en los
-pull requests, no en este archivo.
+reglas estables. El estado del trabajo en curso vive en los pull requests, no
+en este archivo.
 
 ARA Map es el portal privado definitivo para registrar terrenos, editar su
 tabla y adjuntar PDF y KMZ. El sitio vigente es
@@ -15,7 +15,8 @@ Storage privado. La ejecución local usa SQLite y archivos locales de prueba.
 
 No hay asignaciones vigentes por «Team A / Team B». Se trabaja directamente
 con developers Claude Code, por cambios pequeños y pull requests. Los reportes
-anteriores se conservan como evidencia histórica, no como tareas pendientes.
+anteriores se retiraron de `main` y se conservan como evidencia histórica, no
+como tareas pendientes ([docs/HISTORIAL.md](docs/HISTORIAL.md)).
 
 ## Antes de empezar
 
@@ -24,7 +25,7 @@ anteriores se conservan como evidencia histórica, no como tareas pendientes.
    demás.
 2. Lee `docs/DESARROLLO.md` y la tarea actual del propietario. `main` es la
    base única de los cambios nuevos; Render publica desde esa rama. Los
-   checkpoints y protocolos A/B de `reports/` no sustituyen estas instrucciones.
+   checkpoints y protocolos A/B anteriores no sustituyen estas instrucciones.
 3. Revisa los pull requests abiertos (`gh pr list`) para no duplicar ni pisar
    trabajo en curso. Un PR abierto puede traer instrucciones más nuevas que
    `main`.
@@ -64,7 +65,7 @@ fallar en el PR. Las pruebas de navegador de `tests/e2e/` son opcionales.
 | `vendor/python/` | openpyxl incluido para que la app local no necesite instalar nada |
 | `scripts/` | Operación de la nube: migraciones, cuentas, esquema |
 | `tests/` | `test_*.py` con unittest, `js/` con node:test, `e2e/` de navegador |
-| `reports/` | Traspasos, planes y evidencia por fecha; es historial, no se reescribe |
+| `docs/` | Desarrollo, guía del portal, operación (respaldo y restauración) e historial |
 
 ## Reglas de producción
 
@@ -83,7 +84,7 @@ Estas reglas no admiten excepción sin autorización explícita del dueño.
 - **Sin tarjeta ni pagos.** Mantener los planes gratuitos; no contratar
   recursos, pruebas que se conviertan en pago ni ampliaciones de facturación.
 - **Un cambio de esquema es un paso de release.** Va con su migración, su
-  prueba de migración y una nota en el reporte para quien despliega. La base de
+  prueba de migración y una nota en el PR para quien despliega. La base de
   producción puede ir versiones atrás de `main`.
 - **Pruebas separadas de la operación real.** Usar SQLite, Postgres y archivos
   desechables. No conectar un servidor de desarrollo a la base ni al bucket
