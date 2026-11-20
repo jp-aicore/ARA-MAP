@@ -16,7 +16,7 @@ Se retiraron de `main`; [HISTORIAL.md](HISTORIAL.md) dice dónde consultarlos.
 Para una copia nueva:
 
 ```bash
-git clone https://github.com/Andre07-hash/ARA-MAP.git
+git clone https://github.com/jp-aicore/ARA-MAP.git
 cd ARA-MAP
 git switch main
 git pull --ff-only origin main

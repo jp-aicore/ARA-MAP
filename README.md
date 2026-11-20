@@ -6,9 +6,27 @@ Portal privado para registrar terrenos, editar su tabla y adjuntar archivos (PDF
 Este sitio es el proyecto definitivo; se mejora con cambios pequeños aunque su
 nombre conserve «piloto».
 
+## Para quien revisa este repositorio
+
+- **Lo vigente** es lo que describe este README: la aplicación en `server/` y
+  `web/`, publicada en Render, con Neon Postgres y Supabase Storage privado.
+  Lo que menciona Vercel, «Team A / Team B» o reportes con fecha es de una
+  etapa anterior: [docs/HISTORIAL.md](docs/HISTORIAL.md) dice qué es y dónde
+  quedó.
+- **El repositorio no contiene datos reales.** Las tablas, KMZ, PDF y cuentas de
+  `tests/` son ficticios ([tests/fixtures/README.md](tests/fixtures/README.md)).
+  Los terrenos y archivos reales viven sólo en la base y el almacenamiento del
+  sitio, y se entregan aparte, por los canales de la empresa.
+- **El repositorio no contiene credenciales.** Para probarlo basta la ejecución
+  local de abajo, sin acceso a Render, Neon ni Supabase. `render.yaml` muestra
+  qué variables necesita la nube, sólo sus nombres.
+- Para empezar: [Guía del portal](docs/GUIA_DEL_PORTAL.md) (uso),
+  [Guía para developers](docs/DESARROLLO.md) (código y entrega) y
+  [Operación](docs/OPERACION.md) (hosting, límites gratuitos, respaldo).
+
 ## Código y desarrollo
 
-Repositorio: [Andre07-hash/ARA-MAP](https://github.com/Andre07-hash/ARA-MAP).
+Repositorio: [jp-aicore/ARA-MAP](https://github.com/jp-aicore/ARA-MAP).
 La rama **`main`** es la base única para el trabajo nuevo y la rama de Render.
 Las entregas aceptadas del antiguo piloto se conservan con su historial.
 No hay división vigente por equipos A/B.
@@ -41,10 +59,6 @@ requiere elegir y activar en el detalle. Un reemplazo inválido conserva el
 contorno anterior. Un terreno con contorno activo puede verse sin X/Y.
 
 [Guía del portal](docs/GUIA_DEL_PORTAL.md).
-La evidencia local y alojada de las mejoras está en los PR
-[#33](https://github.com/Andre07-hash/ARA-MAP/pull/33),
-[#34](https://github.com/Andre07-hash/ARA-MAP/pull/34) y
-[#35](https://github.com/Andre07-hash/ARA-MAP/pull/35).
 
 ## Datos y archivos
 
@@ -109,5 +123,5 @@ y SHA-256, en destinos nuevos para restaurar. Consulta
 
 El servicio gratuito puede tardar en despertar y el almacenamiento tiene cupo
 limitado. Cambios de código no recrean los recursos ni cargan los datos locales.
-Los adaptadores y reportes de Vercel permanecen como antecedentes; el flujo
-vigente utiliza Render. El catálogo público no es requisito actual.
+El adaptador de Vercel (`api/index.py`, `vercel.json`) permanece en el código
+como antecedente; el flujo vigente utiliza Render. El catálogo público no es requisito actual.
