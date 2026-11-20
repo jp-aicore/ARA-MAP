@@ -32,10 +32,10 @@ FORMATO_4 = [
 ]
 
 
-class ArchivoReal(AsistenteCase):
+class ArchivoMaestro(AsistenteCase):
     moneda = None   # the currency is the point here: answered explicitly below
 
-    def analizar_real(self, contenido=None, nombre="Base Terrenos 09.26 copy.xlsx"):
+    def analizar_real(self, contenido=None, nombre="Base Terrenos 09.26 ficticia.xlsx"):
         return self.analizar(nombre, contenido if contenido is not None else FIXTURE.read_bytes())
 
     def responder(self, r, **elecciones):
@@ -77,13 +77,13 @@ class ArchivoReal(AsistenteCase):
         base = self.confirmar(r, nombre="Base Terrenos 09.26")["base"]
         self.assertEqual((base["conteo"], base["ubicados"]), (79, 39))
         terrenos = self.terrenos(base["id"])
-        marcenas, dorado = terrenos["Marceñas"], terrenos["El Dorado"]
-        self.assertEqual((marcenas["asking_price"], marcenas["asking_m2"], marcenas["moneda"]),
-                         (388689722.0, 600.0, "USD"))
-        self.assertEqual((dorado["asking_m2"], dorado["moneda"]), (122.5, "USD"))
+        inconsistente, centavos = terrenos["Pemerén"], terrenos["El Gimezon"]
+        self.assertEqual((inconsistente["asking_price"], inconsistente["asking_m2"], inconsistente["moneda"]),
+                         (307270994.0, 507.0, "USD"))
+        self.assertEqual((centavos["asking_m2"], centavos["moneda"]), (89.9, "USD"))
         # J2 disagrees with area x unit price; the source value is kept and flagged.
-        self.assertIn("PRECIO_INCONSISTENTE", {i["codigo"] for i in marcenas["incidencias"]})
-        self.assertTrue(any("USD" in i["mensaje"] for i in marcenas["incidencias"]))
+        self.assertIn("PRECIO_INCONSISTENTE", {i["codigo"] for i in inconsistente["incidencias"]})
+        self.assertTrue(any("USD" in i["mensaje"] for i in inconsistente["incidencias"]))
         con_precio = [t for t in terrenos.values() if t["asking_price"] is not None or t["asking_m2"] is not None]
         self.assertEqual({t["moneda"] for t in con_precio}, {"USD"})
         sin_coordenadas = [t for t in terrenos.values() if not t["ubicado"]]
@@ -147,8 +147,8 @@ class ArchivoReal(AsistenteCase):
         mapa_mxn = api_mapas.create(req(json_body={"nombre": "MXN", "tipo": "simple",
                                                    "capas": [{"base_id": mxn["id"], "color": "#222222"}]}))["mapa"]
         congelados = api_mapas.terrenos(req(params={"id": mapa_usd["id"]}))["terrenos"]
-        dorado = next(t for t in congelados if t["terreno"] == "El Dorado")
-        self.assertEqual((dorado["asking_m2"], dorado["moneda"]), (122.5, "USD"))
+        centavos = next(t for t in congelados if t["terreno"] == "El Gimezon")
+        self.assertEqual((centavos["asking_m2"], centavos["moneda"]), (89.9, "USD"))
 
         comparacion = api_mapas.merge(req(json_body={"nombre": "Comparación", "mapa_ids": [mapa_usd["id"],
                                                      mapa_mxn["id"]]}))["mapa"]
@@ -162,9 +162,9 @@ class ArchivoReal(AsistenteCase):
         self.assertEqual(len(libro.worksheets), 2)   # one sheet per source
         hoja = libro.worksheets[0]
         encabezados = [c.value for c in hoja[1]]
-        fila = next(r for r in hoja.iter_rows(min_row=2) if r[1].value == "El Dorado")
+        fila = next(r for r in hoja.iter_rows(min_row=2) if r[1].value == "El Gimezon")
         celda = fila[encabezados.index("Asking $/m2")]
-        self.assertEqual((celda.value, fila[encabezados.index("Moneda")].value), (122.5, "USD"))
+        self.assertEqual((celda.value, fila[encabezados.index("Moneda")].value), (89.9, "USD"))
         self.assertIn('"USD "', celda.number_format)
         self.assertIn("0.00", celda.number_format)
         pesos = next(r for r in libro.worksheets[1].iter_rows(min_row=2) if r[1].value == "FICTICIO Pesos")
@@ -180,7 +180,7 @@ class ArchivoReal(AsistenteCase):
         self.assertEqual((vista["conteo"], vista["con_precio"], vista["con_precio_m2"], vista["moneda"],
                           vista["moneda_origen"]), (79, 59, 60, "USD", "archivo"))
         base = self.confirmar(r, nombre="Reimportada")["base"]
-        self.assertEqual(self.terrenos(base["id"])["El Dorado"]["asking_m2"], 122.5)
+        self.assertEqual(self.terrenos(base["id"])["El Gimezon"]["asking_m2"], 89.9)
 
     def test_a_legacy_row_without_currency_is_exported_as_unconfirmed(self):
         base_id, _ = self.load_fixture("Legado")

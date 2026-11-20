@@ -13,7 +13,7 @@ from server.matching import (
     same_area,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26_ficticia.xlsx"
 
 
 def make(terreno="El Mirador", estado="Jalisco", municipio="Zapopan",
@@ -36,8 +36,8 @@ def existing(id, record):
 class DedupeKey(unittest.TestCase):
     def test_ignores_accents_and_case(self):
         self.assertEqual(
-            dedupe_key("Tecámac 26", "Estado de México", "Tecámac"),
-            dedupe_key("TECAMAC 26", "estado de mexico", "tecamac"),
+            dedupe_key("Fanozón 26", "Estado de México", "Tecámac"),
+            dedupe_key("FANOZON 26", "estado de mexico", "tecamac"),
         )
 
     def test_distinguishes_different_municipalities(self):
@@ -55,11 +55,11 @@ class AreaComparison(unittest.TestCase):
         self.assertTrue(same_area(260_000.0, 260_000.0))
 
     def test_survey_level_rounding_matches(self):
-        # 260,000 vs 260,076 is the real Tecamac 26 pair: 0.03% apart.
+        # 260,000 vs 260,076: two same-named parcels 0.03% apart, as in the fixture.
         self.assertTrue(same_area(260_000.0, 260_076.0))
 
     def test_genuinely_different_parcels_do_not_match(self):
-        # The real Tecamac 93 pair: 45 Ha vs 93 Ha.
+        # Two same-named parcels of very different size.
         self.assertFalse(same_area(450_000.0, 930_000.0))
 
     def test_two_missing_areas_match_but_one_does_not(self):
@@ -88,8 +88,8 @@ class Classify(unittest.TestCase):
         self.assertEqual([d.campo for d in result[0].diferencias], ["asking_price"])
 
     def test_same_name_different_size_is_a_separate_parcel(self):
-        small = make(terreno="Tecámac 93", superficie_m2=450_000.0)
-        large = make(terreno="Tecámac 93", superficie_m2=930_000.0)
+        small = make(terreno="Fanozón 93", superficie_m2=450_000.0)
+        large = make(terreno="Fanozón 93", superficie_m2=930_000.0)
         result = classify([large], [existing(7, small)])
         self.assertEqual(result[0].disposition, Disposition.NUEVA)
 
@@ -109,7 +109,7 @@ class Classify(unittest.TestCase):
         self.assertEqual(store, snapshot)
 
 
-class AppendingTheRealWorkbook(unittest.TestCase):
+class AppendingTheFixtureWorkbook(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.records = read_workbook(FIXTURE).records
@@ -124,14 +124,14 @@ class AppendingTheRealWorkbook(unittest.TestCase):
     def test_importing_into_an_empty_base_keeps_both_tecamac_93_parcels(self):
         result = classify(self.records, [])
         new_count = sum(1 for r in result if r.disposition is Disposition.NUEVA)
-        # 79 rows, of which the Tecamac 26 pair is one true duplicate.
+        # 79 rows, of which the Fanozón 26 pair is one true duplicate.
         self.assertEqual(new_count, 78)
 
-    def test_the_tecamac_26_pair_is_reported_rather_than_silently_kept(self):
+    def test_the_same_named_pair_is_reported_rather_than_silently_kept(self):
         result = classify(self.records, [])
         dupes = [r for r in result if r.disposition is not Disposition.NUEVA]
         self.assertEqual(len(dupes), 1)
-        self.assertEqual(self.records[dupes[0].incoming_index].terreno, "Tecámac 26")
+        self.assertEqual(self.records[dupes[0].incoming_index].terreno, "Fanozón 26")
 
 
 if __name__ == "__main__":

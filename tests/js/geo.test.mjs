@@ -11,9 +11,9 @@ test("a hectare is a circle of about 56.4 m radius", () => {
   assert.ok(Math.abs(groundRadius(10_000) - 56.4189) < 0.001);
 });
 
-test("the radius of the largest real terrain", () => {
-  // El Dorado: 1,086,305.679 m2 -> 588 m across the radius.
-  assert.ok(Math.abs(groundRadius(1_086_305.679) - 588.03) < 0.5);
+test("the radius of a terrain over a hundred hectares", () => {
+  // 1,100,000 m2 -> 592 m across the radius.
+  assert.ok(Math.abs(groundRadius(1_100_000) - 591.73) < 0.5);
 });
 
 test("area four times larger doubles the radius", () => {
@@ -132,7 +132,7 @@ test("a big pile at one coordinate stops growing instead of swallowing the map",
 const { markRadius, SYMBOL_RADIUS } = await import("../../web/lib/geo.js");
 
 const CHICO = 20_000;        // 2 ha
-const GRANDE = 1_086_306;    // El Dorado, the largest real terrain
+const GRANDE = 1_100_000;    // 110 ha, as large as the largest terrains
 const LAT = 19.4;
 
 test("zoomed out, every terrain is the same clean circle", () => {

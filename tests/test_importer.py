@@ -14,10 +14,10 @@ from server.importer import (
 )
 from server.validation import MEXICO_LAT, MEXICO_LON
 
-FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26_ficticia.xlsx"
 
 
-class ReadRealWorkbook(unittest.TestCase):
+class ReadTheFixtureWorkbook(unittest.TestCase):
     """The numbers here were verified by hand against the source file."""
 
     @classmethod
@@ -40,12 +40,12 @@ class ReadRealWorkbook(unittest.TestCase):
     def test_maps_header_with_trailing_space(self):
         # The workbook's header is 'Dirección ' with a trailing space.
         first = self.result.records[0]
-        self.assertTrue(first.direccion.startswith("Carretera Zumpango-Jilotzingo"))
+        self.assertTrue(first.direccion.startswith("Av. Imaginaria 14"))
 
     def test_x_is_latitude_and_y_is_longitude(self):
         first = self.result.records[0]
-        self.assertAlmostEqual(first.lat, 19.8179452790226)
-        self.assertAlmostEqual(first.lon, -99.0874491437001)
+        self.assertAlmostEqual(first.lat, 19.9206145821)
+        self.assertAlmostEqual(first.lon, -99.1746327027)
 
     def test_every_plotted_terrain_lands_inside_mexico(self):
         # Regression guard: swapping lat/lon would put these in the Indian Ocean.
@@ -69,11 +69,11 @@ class ReadRealWorkbook(unittest.TestCase):
                 self.assertEqual(record.notes[0].campo, "asking_m2")
                 self.assertEqual(record.notes[0].valor, "SD")
 
-    def test_preserves_both_tecamac_93_parcels(self):
-        parcels = [r for r in self.result.records if r.terreno == "Tecámac 93"]
+    def test_preserves_both_parcels_named_alike(self):
+        parcels = [r for r in self.result.records if r.terreno == "Fanozón 93"]
         self.assertEqual(len(parcels), 2)
         self.assertEqual(
-            sorted(p.superficie_ha for p in parcels), [45.0, 93.0]
+            sorted(p.superficie_ha for p in parcels), [40.9896, 84.7118]
         )
 
     def test_orden_is_sequential_and_fila_points_at_the_spreadsheet(self):

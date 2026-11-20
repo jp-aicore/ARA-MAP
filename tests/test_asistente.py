@@ -176,7 +176,7 @@ class Demostraciones(unittest.TestCase):
 
 class Equivalencia(unittest.TestCase):
     def test_original_ara_workbook_builds_identical_records(self):
-        # The real workbook's prices are US dollars (confirmed by the
+        # The master workbook's prices are US dollars (confirmed by the
         # supervisor); its "[$$-409]" format alone does not say so, so it asks.
         rejilla = R.leer(FIXTURE.read_bytes(), "b.xlsx")
         self.assertEqual([p.id for p in interpretar(rejilla, {}).preguntas], ["moneda"])

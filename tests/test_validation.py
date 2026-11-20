@@ -14,7 +14,7 @@ from server.validation import (
     validate_record,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26_ficticia.xlsx"
 
 
 def make(**overrides) -> TerrainRecord:
@@ -127,8 +127,8 @@ class NonNumeric(unittest.TestCase):
 class AcrossRows(unittest.TestCase):
     def test_duplicates_are_flagged_on_both_rows(self):
         rows = (
-            make(orden=1, fila=2, terreno="Tecámac 26"),
-            make(orden=2, fila=3, terreno="Tecamac 26"),  # differs only by accent
+            make(orden=1, fila=2, terreno="Fanozón 26"),
+            make(orden=2, fila=3, terreno="Fanozon 26"),  # differs only by accent
         )
         results = validate_all(rows)
         self.assertIn("DUPLICADO_EN_BASE", {f.codigo for f in results[1]})
@@ -144,7 +144,7 @@ class AcrossRows(unittest.TestCase):
         self.assertEqual(results[2], ())
 
 
-class AgainstTheRealWorkbook(unittest.TestCase):
+class AgainstTheFixtureWorkbook(unittest.TestCase):
     """Locks in the findings actually present in Base Terrenos 09.26."""
 
     @classmethod
@@ -166,13 +166,13 @@ class AgainstTheRealWorkbook(unittest.TestCase):
             },
         )
 
-    def test_marcenas_is_the_only_price_error(self):
+    def test_one_row_is_the_only_price_error(self):
         flagged = [
             r.terreno
             for r in self.records
             if any(f.codigo == "PRECIO_INCONSISTENTE" for f in self.findings[r.orden])
         ]
-        self.assertEqual(flagged, ["Marceñas"])
+        self.assertEqual(flagged, ["Pemerén"])
 
     def test_no_coordinate_errors_in_the_real_data(self):
         for record in self.records:

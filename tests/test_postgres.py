@@ -16,9 +16,9 @@ from server.repo import bases, mapas, terrenos
 from server.router import Request
 from server.staging import Staging
 from server.validation import validate_all
-from tests.support import FIXTURE as REAL_FIXTURE
+from tests.support import FIXTURE as SEPTEMBER_FIXTURE
 
-FIXTURE = REAL_FIXTURE.with_name("base_terrenos_08_26_sintetica.xlsx")
+FIXTURE = SEPTEMBER_FIXTURE.with_name("base_terrenos_08_26_ficticia.xlsx")
 
 
 @unittest.skipUnless(os.environ.get("ARA_MAP_TEST_DATABASE_URL"), "No Postgres test connection configured")

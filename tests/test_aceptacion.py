@@ -1,6 +1,6 @@
 """The acceptance scenario defined by the supervisor review of 21 Sep 2026.
 
-One uninterrupted run: import a real workbook, reconcile every row, correct a
+One uninterrupted run: import the master workbook, reconcile every row, correct a
 missing location, verify the detail, save and reopen after a restart, compare
 three versions, merge versions of one source, then delete and replace that
 source without changing historical provenance.
@@ -30,7 +30,7 @@ def extra(orden: int, nombre: str, m2: float) -> TerrainRecord:
 
 class AcceptanceScenario(TempDatabase):
     def test_the_whole_chain(self):
-        # 1 - import a real workbook and account for every row.
+        # 1 - import the master workbook and account for every row.
         resultado = read_workbook(FIXTURE)
         self.assertEqual(
             resultado.filas_con_datos,

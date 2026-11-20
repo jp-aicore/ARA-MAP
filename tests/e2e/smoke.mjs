@@ -13,8 +13,8 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const URL_BASE = (process.env.ARA_URL ?? 'http://localhost:8420').replace(/\/$/, '');
-const FIXTURE = fileURLToPath(new globalThis.URL('../fixtures/base_terrenos_09_26.xlsx', import.meta.url));
-const FIXTURE_AGOSTO = fileURLToPath(new globalThis.URL('../fixtures/base_terrenos_08_26_sintetica.xlsx', import.meta.url));
+const FIXTURE = fileURLToPath(new globalThis.URL('../fixtures/base_terrenos_09_26_ficticia.xlsx', import.meta.url));
+const FIXTURE_AGOSTO = fileURLToPath(new globalThis.URL('../fixtures/base_terrenos_08_26_ficticia.xlsx', import.meta.url));
 
 const api = async (path, options = {}) => {
   const response = await fetch(`${URL_BASE}/api${path}`, options);
@@ -149,11 +149,11 @@ try {
   await check('the detail panel shows a terrain and its findings', async () => {
     await page.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Tabla' }).click();
     await page.waitForTimeout(400);
-    await page.getByRole('row', { name: /Marce/ }).first().click();
+    await page.getByRole('row', { name: /Pemer/ }).first().click();
     await page.waitForTimeout(400);
-    assert.ok(await page.getByRole('heading', { name: 'Marceñas' }).isVisible());
+    assert.ok(await page.getByRole('heading', { name: 'Pemerén' }).isVisible());
     assert.ok(await page.getByText(/error de un dígito/).isVisible());
-    assert.match(await page.locator('.detail .figure-lead').first().textContent(), /388,689,722/);
+    assert.match(await page.locator('.detail .figure-lead').first().textContent(), /307,270,994/);
   });
 
   await check('Escape closes the detail panel', async () => {
@@ -165,11 +165,11 @@ try {
   await check('the table sorts by unit price', async () => {
     await page.getByRole('button', { name: /Asking \$\/m/ }).click();
     await page.waitForTimeout(400);
-    assert.match(await page.locator('tbody tr').first().textContent(), /Los Caudales/);
+    assert.match(await page.locator('tbody tr').first().textContent(), /Los Rizupel/);
   });
 
   await check('the map stays inside its column when the panel is open', async () => {
-    await page.getByRole('row', { name: /Marce/ }).first().click();
+    await page.getByRole('row', { name: /Pemer/ }).first().click();
     await page.waitForTimeout(400);
     await page.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Mapa' }).click();
     await page.waitForTimeout(1200);
@@ -527,7 +527,7 @@ try {
   }
   /* Waits for the preview. A file whose prices carry no currency marker asks
    * for it once; the fictional fixtures always meant pesos, so that is the
-   * default answer. The real workbook's check answers USD explicitly. */
+   * default answer. The master workbook's check answers USD explicitly. */
   const PREGUNTA_MONEDA = '¿En qué moneda están los precios?';
   async function listoParaImportar(moneda = 'MXN') {
     // Either the preview is ready, or the currency is being asked and not yet
@@ -743,27 +743,27 @@ try {
     await dialogo().getByText(/Moneda de los precios: dólares estadounidenses \(USD\) — según tu respuesta/).waitFor();
     const fila = async (nombre) => (await dialogo().locator('.preview-table tbody tr')
       .filter({ hasText: nombre }).first().textContent()).replace(/\s/g, ' ');
-    assert.match(await fila('Marceñas'), /MXN 388,689,722.*MXN 600\/m²/);
-    assert.match(await fila('El Dorado'), /MXN 122\.50\/m²/);
+    assert.match(await fila('Pemerén'), /MXN 307,270,994.*MXN 507\/m²/);
+    assert.match(await fila('El Gimezon'), /MXN 89\.90\/m²/);
     await dialogo().locator('#recordar-formato').uncheck();
-    await dialogo().locator('#nombre-base').fill('E2E Real USD');
+    await dialogo().locator('#nombre-base').fill('E2E Maestra USD');
     await botonImportar().click();
     await dialogo().waitFor({ state: 'detached' });
-    const base = (await api('/bases')).bases.find((b) => b.nombre === 'E2E Real USD');
+    const base = (await api('/bases')).bases.find((b) => b.nombre === 'E2E Maestra USD');
     created.bases.push(base.id);
     assert.deepEqual([base.conteo, base.ubicados], [79, 39]);
     const { terrenos } = await api(`/bases/${base.id}/terrenos`);
     const t = Object.fromEntries(terrenos.map((x) => [x.terreno, x]));
-    assert.deepEqual([t['Marceñas'].asking_price, t['Marceñas'].asking_m2, t['Marceñas'].moneda], [388689722, 600, 'USD']);
-    assert.deepEqual([t['El Dorado'].asking_m2, t['El Dorado'].moneda], [122.5, 'USD']);
+    assert.deepEqual([t['Pemerén'].asking_price, t['Pemerén'].asking_m2, t['Pemerén'].moneda], [307270994, 507, 'USD']);
+    assert.deepEqual([t['El Gimezon'].asking_m2, t['El Gimezon'].moneda], [89.9, 'USD']);
 
     // Reopened: the table shows the stored dollars, cents kept.
     await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: 'Bases' }).click();
-    await page.getByRole('button', { name: /E2E Real USD/ }).first().click();
+    await page.getByRole('button', { name: /E2E Maestra USD/ }).first().click();
     await page.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Tabla' }).click();
-    const celda = (await page.locator('.table tbody tr').filter({ hasText: 'El Dorado' }).first().textContent())
+    const celda = (await page.locator('.table tbody tr').filter({ hasText: 'El Gimezon' }).first().textContent())
       .replace(/\s/g, ' ');
-    assert.match(celda, /MXN 133,072,446.*MXN 122\.50\/m²/);
+    assert.match(celda, /MXN 117,118,884.*MXN 89\.90\/m²/);
     await page.getByRole('group', { name: 'Vista' }).getByRole('button', { name: 'Mapa' }).click();
   });
 
