@@ -23,7 +23,7 @@ from server.validation import validate_all
 from tests.support import TEST_PASSWORD
 
 URL = os.environ.get("ARA_MAP_TEST_DATABASE_URL")
-FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_08_26_sintetica.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_08_26_ficticia.xlsx"
 
 V8_TABLES = ("team_user", "inventory_terrain", "inventory_revision", "inventory_event",
              "inventory_operation_result", "base", "terreno", "incidencia", "mapa", "mapa_capa",

@@ -55,7 +55,7 @@ class CleanMachine(unittest.TestCase):
         out = self.run_python(
             "import sys; sys.path.insert(0, '.');"
             "from server.importer import read_workbook;"
-            "r = read_workbook('tests/fixtures/base_terrenos_09_26.xlsx');"
+            "r = read_workbook('tests/fixtures/base_terrenos_09_26_ficticia.xlsx');"
             "print(len(r.records), r.ubicados)"
         )
         self.assertEqual(out.returncode, 0, out.stderr)

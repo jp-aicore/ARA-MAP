@@ -69,8 +69,8 @@ function closeEnough(left, right, tolerance = VALUE_TOLERANCE) {
  * Find the baseline counterpart of a terrain: same key, comparable area.
  *
  * A baseline row already claimed by another terrain is skipped. Without that,
- * a genuine pair of same-named parcels (the two "Tecamac 26" rows differ by
- * 0.03% in area) would both match the first one, leaving the second baseline
+ * a genuine pair of same-named parcels (two rows whose areas differ by
+ * 0.03%) would both match the first one, leaving the second baseline
  * row looking removed when nothing was removed.
  */
 function findTwin(terreno, candidates, claimed) {

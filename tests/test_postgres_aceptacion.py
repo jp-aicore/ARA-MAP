@@ -395,7 +395,7 @@ class ComparacionesEnLaNube(EsquemaDesechable):
         from server.api import mapas as api_mapas
         from tests.support import FIXTURE
         ids = []
-        for archivo, nombre in ((FIXTURE.with_name("base_terrenos_08_26_sintetica.xlsx"), "Agosto"),
+        for archivo, nombre in ((FIXTURE.with_name("base_terrenos_08_26_ficticia.xlsx"), "Agosto"),
                                 (FIXTURE, "Septiembre")):
             p = importar.preview(peticion(archivo.read_bytes(), {"X-Archivo": "f.xlsx"}))
             ids.append(importar.confirm(peticion(json_body={"token": p["token"], "nombre": nombre}))["base"]["id"])

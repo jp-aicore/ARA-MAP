@@ -263,7 +263,7 @@ await caso('signed in, legacy bases and saved maps stay reachable and editable',
   const { context, page, errores } = await contexto();
   await page.goto(`${URL_BASE}/`);
   await entrar(page, 'ana');
-  const libro = readFileSync(new URL('../fixtures/base_terrenos_09_26.xlsx', import.meta.url));
+  const libro = readFileSync(new URL('../fixtures/base_terrenos_09_26_ficticia.xlsx', import.meta.url));
   const previa = await (await page.request.post(`${URL_BASE}/api/importar/vista-previa`, {
     headers: { 'Content-Type': 'application/octet-stream', 'X-Archivo': 'base.xlsx', Origin: URL_BASE }, data: libro,
   })).json();

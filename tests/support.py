@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26.xlsx"
+FIXTURE = Path(__file__).parent / "fixtures" / "base_terrenos_09_26_ficticia.xlsx"
 TEST_PASSWORD = "contraseña-de-prueba-larga"
 
 
@@ -53,7 +53,7 @@ class TempDatabase(unittest.TestCase):
         self._dir.cleanup()
 
     def load_fixture(self, nombre="Base de prueba"):
-        """Import the real workbook into the temp database."""
+        """Import the fictitious master workbook into the temp database."""
         from server.importer import read_workbook
         from server.repo import bases, terrenos
         from server.validation import validate_all

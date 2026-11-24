@@ -66,14 +66,14 @@ test("rounding under half a percent is not a change", () => {
 
 test("matching ignores accents and case", () => {
   assert.equal(
-    dedupeKey({ terreno: "Tecámac 26", estado: "Estado de México", municipio: "Tecámac" }),
-    dedupeKey({ terreno: "TECAMAC 26", estado: "estado de mexico", municipio: "tecamac" }),
+    dedupeKey({ terreno: "Fanozón 26", estado: "Estado de México", municipio: "Tecámac" }),
+    dedupeKey({ terreno: "FANOZON 26", estado: "estado de mexico", municipio: "tecamac" }),
   );
 });
 
 test("two same-named parcels match one to one, not both to the first", () => {
-  // The real pair: 260,000 and 260,076 m2, 0.03% apart.
-  const pareja = (id, capa, m2) => terreno(id, capa, { terreno: "Tecámac 26", superficie_m2: m2 });
+  // Two same-named parcels: 260,000 and 260,076 m2, 0.03% apart.
+  const pareja = (id, capa, m2) => terreno(id, capa, { terreno: "Fanozón 26", superficie_m2: m2 });
   const out = compareLayers(
     [pareja(1, 0, 260000), pareja(2, 0, 260076),
      pareja(3, 1, 260000), pareja(4, 1, 260076)], CAPAS);
@@ -86,9 +86,9 @@ test("two same-named parcels match one to one, not both to the first", () => {
 });
 
 test("genuinely different areas stay separate parcels", () => {
-  // The real Tecamac 93 pair: 45 ha against 93 ha.
-  const a = terreno(1, 0, { terreno: "Tecámac 93", superficie_m2: 450000 });
-  const b = terreno(2, 1, { terreno: "Tecámac 93", superficie_m2: 930000 });
+  // Two same-named parcels: 45 ha against 93 ha.
+  const a = terreno(1, 0, { terreno: "Fanozón 93", superficie_m2: 450000 });
+  const b = terreno(2, 1, { terreno: "Fanozón 93", superficie_m2: 930000 });
   const out = compareLayers([a, b], CAPAS);
   assert.equal(estadoDe(out, 2), "nuevo");
   assert.equal(estadoDe(out, 1), "eliminado");
@@ -198,7 +198,7 @@ test("a terrain present in every layer is not reported as removed", () => {
 
 test("the closest area is paired, not merely the first within tolerance", () => {
   // Two reference rows within tolerance of each other must not pair crosswise.
-  const p = (id, capa, m2) => terreno(id, capa, { terreno: "Tecámac 26", superficie_m2: m2 });
+  const p = (id, capa, m2) => terreno(id, capa, { terreno: "Fanozón 26", superficie_m2: m2 });
   const out = compareLayers(
     [p(1, 0, 260000), p(2, 0, 260076), p(3, 1, 260000), p(4, 1, 260076)],
     CAPAS);
