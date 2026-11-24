@@ -16,7 +16,7 @@ No hay división vigente por equipos A/B.
 - [Guía para developers](docs/DESARROLLO.md): clon, entorno local, pruebas,
   pull requests, permisos y publicación.
 - [Reglas compartidas para agentes](AGENTS.md).
-- [Transición al proyecto definitivo](reports/project-definitive-2026-10-13/START_HERE.md).
+- [Historial del proyecto](docs/HISTORIAL.md): de dónde viene y dónde quedó el material anterior.
 
 ## Uso del portal
 
@@ -40,7 +40,7 @@ válido se activa al terminar. Con varios candidatos
 requiere elegir y activar en el detalle. Un reemplazo inválido conserva el
 contorno anterior. Un terreno con contorno activo puede verse sin X/Y.
 
-[Guía de inicio del portal](reports/team-a-free-pilot-2026-10-12/GUIA_DE_INICIO.md).
+[Guía del portal](docs/GUIA_DEL_PORTAL.md).
 La evidencia local y alojada de las mejoras está en los PR
 [#33](https://github.com/Andre07-hash/ARA-MAP/pull/33),
 [#34](https://github.com/Andre07-hash/ARA-MAP/pull/34) y
@@ -104,10 +104,8 @@ propietario. No se necesitan credenciales alojadas para desarrollar localmente.
 Un respaldo completo reúne un dump de Postgres y los archivos correspondientes
 exportados fuera del host y del bucket activo. La secuencia documentada es
 `verificar_archivos.py` → `restaurar_archivos.py` → verificación final de tamaño
-y SHA-256, en destinos nuevos para restaurar. Consulta las secciones 7 y 8 del
-[checklist de operación](reports/team-a-free-pilot-2026-10-12/OPERATOR_CHECKLIST.md).
-Ese documento conserva el contexto histórico de preparación; su encabezado no
-significa que la publicación actual siga pendiente.
+y SHA-256, en destinos nuevos para restaurar. Consulta
+[docs/OPERACION.md](docs/OPERACION.md).
 
 El servicio gratuito puede tardar en despertar y el almacenamiento tiene cupo
 limitado. Cambios de código no recrean los recursos ni cargan los datos locales.

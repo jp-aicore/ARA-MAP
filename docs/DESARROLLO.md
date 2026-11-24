@@ -9,6 +9,7 @@ El despliegue es manual; auto-deploy queda apagado.
 Se trabaja directamente con developers Claude Code. No hay tareas ni
 responsabilidades vigentes divididas en Team A / Team B. Los reportes de esas
 entregas son antecedentes: no repetirlas ni volver a fusionar sus candidatos.
+Se retiraron de `main`; [HISTORIAL.md](HISTORIAL.md) dice dónde consultarlos.
 
 ## Llegar al código vigente
 
